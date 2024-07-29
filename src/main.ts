@@ -36,7 +36,7 @@ export default class MyTaskChecker extends Plugin {
       const fileName = `todo-files-${new Date().toISOString().split('T')[0]}.md`;
       const filePath = `${vaultPath}/${fileName}`;
       
-      await this.app.vault.adapter.write(filePath, fileList);
+      await this.app.vault.adapter.write(fileName, fileList);
       new Notice(`Files with tasks have been written to ${fileName}`);
     }
   }
