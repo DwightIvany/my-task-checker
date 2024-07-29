@@ -38,6 +38,11 @@ var MyTaskChecker = class extends import_obsidian.Plugin {
       name: "List Files with Tasks",
       callback: () => this.listFilesWithTasks()
     });
+    this.addCommand({
+      id: "show-task-count",
+      name: "Show Task Count",
+      callback: () => this.showTaskCount()
+    });
   }
   onunload() {
     console.log("Unloading Task Checker plugin");
@@ -49,9 +54,17 @@ var MyTaskChecker = class extends import_obsidian.Plugin {
       new import_obsidian.Notice("No files with tasks found.");
     } else {
       const fileList = filesWithTasks.join("\n");
-      new import_obsidian.Notice(`Files with tasks:
-${fileList}`);
+      const fileName = `todo-files-${new Date().toISOString().split("T")[0]}.md`;
+      const filePath = `${vaultPath}/${fileName}`;
+      await this.app.vault.adapter.write(fileName, fileList);
+      new import_obsidian.Notice(`Files with tasks have been written to ${fileName}`);
     }
+  }
+  async showTaskCount() {
+    const vaultPath = this.app.vault.adapter.basePath;
+    const filesWithTasks = await this.getFilesWithTasks(vaultPath);
+    const taskCount = filesWithTasks.length;
+    new import_obsidian.Notice(`Total number of files with tasks: ${taskCount}`);
   }
   async getFilesWithTasks(dir) {
     const fs = require("fs").promises;
