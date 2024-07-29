@@ -1,0 +1,17 @@
+{
+	"name": "my-task-checker",
+	"version": "1.0.0",
+	"description": "Lists files that contain the string '- [ ]'.",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs"
+	},
+	"author": "Your Name",
+	"license": "MIT",
+	"dependencies": {
+		"esbuild": "^0.13.12"
+	},
+	"devDependencies": {
+		"typescript": "^4.3.5"
+	}
+}
