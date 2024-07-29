@@ -13,6 +13,12 @@ export default class MyTaskChecker extends Plugin {
       name: 'List Files with Tasks',
       callback: () => this.listFilesWithTasks()
     });
+
+    this.addCommand({
+      id: 'show-task-count',
+      name: 'Show Task Count',
+      callback: () => this.showTaskCount()
+    });
   }
 
   onunload() {
@@ -27,8 +33,20 @@ export default class MyTaskChecker extends Plugin {
       new Notice('No files with tasks found.');
     } else {
       const fileList = filesWithTasks.join('\n');
-      new Notice(`Files with tasks:\n${fileList}`);
+      const fileName = `todo-files-${new Date().toISOString().split('T')[0]}.md`;
+      const filePath = `${vaultPath}/${fileName}`;
+      
+      await this.app.vault.adapter.write(filePath, fileList);
+      new Notice(`Files with tasks have been written to ${fileName}`);
     }
+  }
+
+  async showTaskCount() {
+    const vaultPath = this.app.vault.adapter.basePath;
+    const filesWithTasks = await this.getFilesWithTasks(vaultPath);
+
+    const taskCount = filesWithTasks.length;
+    new Notice(`Total number of files with tasks: ${taskCount}`);
   }
 
   async getFilesWithTasks(dir: string): Promise<string[]> {
