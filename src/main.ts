@@ -33,7 +33,9 @@ export default class MyTaskChecker extends Plugin {
       new Notice('No files with tasks found.');
     } else {
       const fileList = filesWithTasks.join('\n');
-      const fileName = `todo-files-${new Date().toISOString().split('T')[0]}.md`;
+      const currentDate = new Date();
+      const localDate = currentDate.toLocaleDateString('en-CA'); // Formats the date as YYYY-MM-DD
+      const fileName = `todo-files-${localDate}.md`;
       const filePath = `${vaultPath}/${fileName}`;
       
       await this.app.vault.adapter.write(fileName, fileList);

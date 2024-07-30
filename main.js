@@ -54,7 +54,9 @@ var MyTaskChecker = class extends import_obsidian.Plugin {
       new import_obsidian.Notice("No files with tasks found.");
     } else {
       const fileList = filesWithTasks.join("\n");
-      const fileName = `todo-files-${new Date().toISOString().split("T")[0]}.md`;
+      const currentDate = new Date();
+      const localDate = currentDate.toLocaleDateString("en-CA");
+      const fileName = `todo-files-${localDate}.md`;
       const filePath = `${vaultPath}/${fileName}`;
       await this.app.vault.adapter.write(fileName, fileList);
       new import_obsidian.Notice(`Files with tasks have been written to ${fileName}`);
