@@ -64,29 +64,10 @@ export default class MyTaskChecker extends Plugin {
     }
 
     /**
-     * Converts a file path to an Obsidian-style link.
-     * 
-     * @param filePath - The absolute file path
-     * @param vaultPath - The vault root path
-     * @returns Obsidian link in the format [[path/to/file]]
-     */
-    private pathToObsidianLink(filePath: string, vaultPath: string): string {
-        // Get relative path from vault root
-        const relativePath = path.relative(vaultPath, filePath);
-        // Normalize path separators to forward slashes
-        const normalizedPath = relativePath.replace(/\\/g, "/");
-        // Remove .md extension if present
-        const linkPath = normalizedPath.replace(/\.md$/i, "");
-        // Return as Obsidian link
-        return `[[${linkPath}]]`;
-    }
-
-    /**
      * Scans the vault for files containing incomplete tasks and writes the results
      * to a markdown file in the vault root with today's date.
      * 
-     * The output file is named "todo-files-YYYY-MM-DD.md" and contains Obsidian-style links,
-     * one per line, in the format [[path/to/file]].
+     * The output file is named "todo-files-YYYY-MM-DD.md" and contains one file path per line.
      */
     async listFilesWithTasks() {
         const vaultPath = this.app.vault.adapter.basePath;
@@ -95,12 +76,8 @@ export default class MyTaskChecker extends Plugin {
         if (filesWithTasks.length === 0) {
             new Notice("No files with tasks found.");
         } else {
-            // Convert file paths to Obsidian-style links
-            const obsidianLinks = filesWithTasks.map(filePath => 
-                this.pathToObsidianLink(filePath, vaultPath)
-            );
-            // Join links with newlines to create a simple list format
-            const fileList = obsidianLinks.join("\n");
+            // Join file paths with newlines to create a simple list format
+            const fileList = filesWithTasks.join("\n");
             // Generate filename with current date in YYYY-MM-DD format
             const currentDate = new Date();
             const localDate = currentDate.toLocaleDateString("en-CA");
