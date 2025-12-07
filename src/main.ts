@@ -11,7 +11,9 @@ const EXCLUDED_FOLDERS = [
     "G:/Data/Dropbox/ToDo/personal/tickler",
     "G:/Data/Dropbox/ToDo/personal/Utility",
     "G:/Data/Dropbox/ToDo/personal/someday",
-    "G:/Data/Dropbox/ToDo/personal/projects-and-roles",
+    "G:/Data/Dropbox/ToDo/personal/projects",
+    "G:/Data/Dropbox/ToDo/personal/software",
+    "G:/Data/Dropbox/ToDo/personal/roles",
     "G:/Data/Dropbox/ToDo/personal/daily"
 ];
 
@@ -21,6 +23,7 @@ const EXCLUDED_FOLDERS = [
  */
 const EXCLUDED_FILES = [
     "G:/Data/Dropbox/ToDo/personal/software/Git/weekly-branch-names.md",
+    "G:/Data/Dropbox/ToDo/personal/CLAUDE.md",
     "G:/Data/Dropbox/ToDo/personal/software/linux/Not Next Bash Example.md"
 ];
 
