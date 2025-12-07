@@ -4,7 +4,7 @@
 	"description": "Lists files that contain the string '- [ ]'.",
 	"main": "main.js",
 	"scripts": {
-		"dev": "node esbuild.config.mjs"
+		"dev": "npx esbuild src/main.ts --bundle --outfile=main.js --platform=node --external:obsidian --allow-overwrite"
 	},
 	"author": "Your Name",
 	"license": "MIT",

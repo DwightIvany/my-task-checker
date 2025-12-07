@@ -4,33 +4,38 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __markAsModule = (target) => __defProp(target, "__esModule", { value: true });
 var __export = (target, all) => {
-  __markAsModule(target);
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
-var __reExport = (target, module2, desc) => {
-  if (module2 && typeof module2 === "object" || typeof module2 === "function") {
-    for (let key of __getOwnPropNames(module2))
-      if (!__hasOwnProp.call(target, key) && key !== "default")
-        __defProp(target, key, { get: () => module2[key], enumerable: !(desc = __getOwnPropDesc(module2, key)) || desc.enumerable });
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
   }
-  return target;
+  return to;
 };
-var __toModule = (module2) => {
-  return __reExport(__markAsModule(__defProp(module2 != null ? __create(__getProtoOf(module2)) : {}, "default", module2 && module2.__esModule && "default" in module2 ? { get: () => module2.default, enumerable: true } : { value: module2, enumerable: true })), module2);
-};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/main.ts
-__export(exports, {
+var main_exports = {};
+__export(main_exports, {
   default: () => MyTaskChecker
 });
-var import_obsidian = __toModule(require("obsidian"));
-
-// Define excluded folders as a constant
-// Define excluded folders and files as constants
-const EXCLUDED_FOLDERS = [
+module.exports = __toCommonJS(main_exports);
+var import_obsidian = require("obsidian");
+var fs = __toESM(require("fs/promises"));
+var path = __toESM(require("path"));
+var EXCLUDED_FOLDERS = [
   "G:/Data/Dropbox/ToDo/personal/checklists",
   "G:/Data/Dropbox/ToDo/personal/tickler",
   "G:/Data/Dropbox/ToDo/personal/Utility",
@@ -38,82 +43,106 @@ const EXCLUDED_FOLDERS = [
   "G:/Data/Dropbox/ToDo/personal/projects-and-roles",
   "G:/Data/Dropbox/ToDo/personal/daily"
 ];
-
-const EXCLUDED_FILES = [
+var EXCLUDED_FILES = [
   "G:/Data/Dropbox/ToDo/personal/software/Git/weekly-branch-names.md",
   "G:/Data/Dropbox/ToDo/personal/software/linux/Not Next Bash Example.md"
 ];
-
 var MyTaskChecker = class extends import_obsidian.Plugin {
+  /**
+   * Initializes the plugin when Obsidian loads it.
+   * Sets up the ribbon icon and command palette commands.
+   */
   async onload() {
     console.log("Loading Task Checker plugin");
-
     this.addRibbonIcon("check-circle", "List files with tasks", () => {
       this.listFilesWithTasks();
     });
-
     this.addCommand({
       id: "list-files-with-tasks",
       name: "List Files with Tasks",
       callback: () => this.listFilesWithTasks()
     });
-
     this.addCommand({
       id: "show-task-count",
       name: "Show Task Count",
       callback: () => this.showTaskCount()
     });
   }
-
+  /**
+   * Cleanup when the plugin is unloaded.
+   */
   onunload() {
     console.log("Unloading Task Checker plugin");
   }
-
+  /**
+   * Converts a file path to an Obsidian-style link.
+   * 
+   * @param filePath - The absolute file path
+   * @param vaultPath - The vault root path
+   * @returns Obsidian link in the format [[path/to/file]]
+   */
+  pathToObsidianLink(filePath, vaultPath) {
+    const relativePath = path.relative(vaultPath, filePath);
+    const normalizedPath = relativePath.replace(/\\/g, "/");
+    const linkPath = normalizedPath.replace(/\.md$/i, "");
+    return `[[${linkPath}]]`;
+  }
+  /**
+   * Scans the vault for files containing incomplete tasks and writes the results
+   * to a markdown file in the vault root with today's date.
+   * 
+   * The output file is named "todo-files-YYYY-MM-DD.md" and contains Obsidian-style links,
+   * one per line, in the format [[path/to/file]].
+   */
   async listFilesWithTasks() {
     const vaultPath = this.app.vault.adapter.basePath;
     const filesWithTasks = await this.getFilesWithTasks(vaultPath);
-
     if (filesWithTasks.length === 0) {
       new import_obsidian.Notice("No files with tasks found.");
     } else {
-      const fileList = filesWithTasks.join("\n");
-      const currentDate = new Date();
+      const obsidianLinks = filesWithTasks.map(
+        (filePath) => this.pathToObsidianLink(filePath, vaultPath)
+      );
+      const fileList = obsidianLinks.join("\n");
+      const currentDate = /* @__PURE__ */ new Date();
       const localDate = currentDate.toLocaleDateString("en-CA");
       const fileName = `todo-files-${localDate}.md`;
       await this.app.vault.adapter.write(fileName, fileList);
       new import_obsidian.Notice(`Files with tasks have been written to ${fileName}`);
     }
   }
-
+  /**
+   * Displays a notification showing the total count of files that contain incomplete tasks.
+   */
   async showTaskCount() {
     const vaultPath = this.app.vault.adapter.basePath;
     const filesWithTasks = await this.getFilesWithTasks(vaultPath);
     const taskCount = filesWithTasks.length;
     new import_obsidian.Notice(`Total number of files with tasks: ${taskCount}`);
   }
-
+  /**
+   * Recursively scans a directory tree for markdown files containing incomplete tasks.
+   * 
+   * A task is considered incomplete if it contains the pattern "- [ ]" (unchecked checkbox).
+   * Files in excluded folders and specific excluded files are skipped.
+   * 
+   * @param dir - The root directory path to start scanning from
+   * @returns Promise resolving to an array of file paths that contain incomplete tasks
+   */
   async getFilesWithTasks(dir) {
-    const fs = require("fs").promises;
-    const path = require("path");
     let filesWithTasks = [];
-
-    async function readDir(dir2) {
-      const normalizedDir = dir2.replace(/\\/g, "/"); // Normalize paths
-      // Skip excluded folders
+    const readDir = async (dirPath) => {
+      const normalizedDir = dirPath.replace(/\\/g, "/");
       if (EXCLUDED_FOLDERS.some((excluded) => normalizedDir.startsWith(excluded))) {
         return;
       }
-
-      const files = await fs.readdir(dir2);
+      const files = await fs.readdir(dirPath);
       for (const file of files) {
-        const filePath = path.join(dir2, file).replace(/\\/g, "/"); // Normalize paths for comparison
+        const filePath = path.join(dirPath, file).replace(/\\/g, "/");
         const stat = await fs.lstat(filePath);
-
-        // Skip excluded files
         if (EXCLUDED_FILES.includes(filePath)) {
           continue;
         }
-
         if (stat.isDirectory()) {
           await readDir(filePath);
         } else if (file.endsWith(".md")) {
@@ -123,11 +152,8 @@ var MyTaskChecker = class extends import_obsidian.Plugin {
           }
         }
       }
-    }
-
+    };
     await readDir(dir);
     return filesWithTasks;
   }
 };
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {});
