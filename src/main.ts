@@ -61,7 +61,12 @@ export default class MyTaskChecker extends Plugin {
         console.log("Loading Task Checker plugin");
 
         // Load settings
-        await this.loadSettings();
+        try {
+            await this.loadSettings();
+        } catch (error) {
+            console.error("Task Checker: Error loading settings, using defaults", error);
+            this.settings = Object.assign({}, DEFAULT_SETTINGS);
+        }
 
         // Add settings tab
         const settingsTab = new TaskCheckerSettingTab(this.app, this);
