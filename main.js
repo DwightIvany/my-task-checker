@@ -35,28 +35,45 @@ module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
 var fs = __toESM(require("fs/promises"));
 var path = __toESM(require("path"));
-var EXCLUDED_FOLDERS = [
-  "G:/Data/Dropbox/ToDo/personal/checklists",
-  "G:/Data/Dropbox/ToDo/personal/tickler",
-  "G:/Data/Dropbox/ToDo/personal/Utility",
-  "G:/Data/Dropbox/ToDo/personal/someday",
-  "G:/Data/Dropbox/ToDo/personal/projects",
-  "G:/Data/Dropbox/ToDo/personal/software",
-  "G:/Data/Dropbox/ToDo/personal/roles",
-  "G:/Data/Dropbox/ToDo/personal/daily"
-];
-var EXCLUDED_FILES = [
-  "G:/Data/Dropbox/ToDo/personal/software/Git/weekly-branch-names.md",
-  "G:/Data/Dropbox/ToDo/personal/CLAUDE.md",
-  "G:/Data/Dropbox/ToDo/personal/software/linux/Not Next Bash Example.md"
-];
+var DEFAULT_SETTINGS = {
+  excludedFolders: [
+    "G:/Data/Dropbox/ToDo/personal/checklists",
+    "G:/Data/Dropbox/ToDo/personal/tickler",
+    "G:/Data/Dropbox/ToDo/personal/Utility",
+    "G:/Data/Dropbox/ToDo/personal/someday",
+    "G:/Data/Dropbox/ToDo/personal/projects",
+    "G:/Data/Dropbox/ToDo/personal/software",
+    "G:/Data/Dropbox/ToDo/personal/roles",
+    "G:/Data/Dropbox/ToDo/personal/daily"
+  ],
+  excludedFiles: [
+    "G:/Data/Dropbox/ToDo/personal/software/Git/weekly-branch-names.md",
+    "G:/Data/Dropbox/ToDo/personal/CLAUDE.md",
+    "G:/Data/Dropbox/ToDo/personal/software/linux/Not Next Bash Example.md"
+  ]
+};
 var MyTaskChecker = class extends import_obsidian.Plugin {
+  settings;
+  /**
+   * Loads settings from storage or uses defaults.
+   */
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+  /**
+   * Saves settings to storage.
+   */
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
   /**
    * Initializes the plugin when Obsidian loads it.
    * Sets up the ribbon icon and command palette commands.
    */
   async onload() {
     console.log("Loading Task Checker plugin");
+    await this.loadSettings();
+    this.addSettingTab(new TaskCheckerSettingTab(this.app, this));
     this.addRibbonIcon("check-circle", "List files with tasks", () => {
       this.listFilesWithTasks();
     });
@@ -136,14 +153,14 @@ var MyTaskChecker = class extends import_obsidian.Plugin {
     let filesWithTasks = [];
     const readDir = async (dirPath) => {
       const normalizedDir = dirPath.replace(/\\/g, "/");
-      if (EXCLUDED_FOLDERS.some((excluded) => normalizedDir.startsWith(excluded))) {
+      if (this.settings.excludedFolders.some((excluded) => normalizedDir.startsWith(excluded))) {
         return;
       }
       const files = await fs.readdir(dirPath);
       for (const file of files) {
         const filePath = path.join(dirPath, file).replace(/\\/g, "/");
         const stat = await fs.lstat(filePath);
-        if (EXCLUDED_FILES.includes(filePath)) {
+        if (this.settings.excludedFiles.includes(filePath)) {
           continue;
         }
         if (stat.isDirectory()) {
@@ -158,5 +175,71 @@ var MyTaskChecker = class extends import_obsidian.Plugin {
     };
     await readDir(dir);
     return filesWithTasks;
+  }
+};
+var TaskCheckerSettingTab = class extends import_obsidian.PluginSettingTab {
+  plugin;
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.createEl("h2", { text: "Task Checker Settings" });
+    containerEl.createEl("h3", { text: "Excluded Folders" });
+    containerEl.createEl("p", {
+      text: "Folders that should be excluded from task scanning. These directories are skipped entirely during recursive traversal.",
+      cls: "setting-item-description"
+    });
+    const excludedFoldersContainer = containerEl.createDiv("excluded-folders-container");
+    this.plugin.settings.excludedFolders.forEach((folder, index) => {
+      const folderSetting = new import_obsidian.Setting(excludedFoldersContainer).addText((text) => {
+        text.setValue(folder).setPlaceholder("Enter folder path").onChange(async (value) => {
+          this.plugin.settings.excludedFolders[index] = value;
+          await this.plugin.saveSettings();
+        });
+      }).addExtraButton((button) => {
+        button.setIcon("trash").setTooltip("Remove this folder").onClick(async () => {
+          this.plugin.settings.excludedFolders.splice(index, 1);
+          await this.plugin.saveSettings();
+          this.display();
+        });
+      });
+    });
+    new import_obsidian.Setting(excludedFoldersContainer).addButton((button) => {
+      button.setButtonText("Add Folder").setCta().onClick(async () => {
+        this.plugin.settings.excludedFolders.push("");
+        await this.plugin.saveSettings();
+        this.display();
+      });
+    });
+    containerEl.createEl("h3", { text: "Excluded Files" });
+    containerEl.createEl("p", {
+      text: "Individual files that should be excluded from task scanning. These files are skipped even if they contain task markers.",
+      cls: "setting-item-description"
+    });
+    const excludedFilesContainer = containerEl.createDiv("excluded-files-container");
+    this.plugin.settings.excludedFiles.forEach((file, index) => {
+      const fileSetting = new import_obsidian.Setting(excludedFilesContainer).addText((text) => {
+        text.setValue(file).setPlaceholder("Enter file path").onChange(async (value) => {
+          this.plugin.settings.excludedFiles[index] = value;
+          await this.plugin.saveSettings();
+        });
+      }).addExtraButton((button) => {
+        button.setIcon("trash").setTooltip("Remove this file").onClick(async () => {
+          this.plugin.settings.excludedFiles.splice(index, 1);
+          await this.plugin.saveSettings();
+          this.display();
+        });
+      });
+    });
+    new import_obsidian.Setting(excludedFilesContainer).addButton((button) => {
+      button.setButtonText("Add File").setCta().onClick(async () => {
+        this.plugin.settings.excludedFiles.push("");
+        await this.plugin.saveSettings();
+        this.display();
+      });
+    });
   }
 };
