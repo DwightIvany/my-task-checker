@@ -42,7 +42,8 @@ export default class MyTaskChecker extends Plugin {
      * Loads settings from storage or uses defaults.
      */
     async loadSettings() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        const loadedData = await this.loadData();
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData || {});
     }
 
     /**
@@ -63,7 +64,9 @@ export default class MyTaskChecker extends Plugin {
         await this.loadSettings();
 
         // Add settings tab
-        this.addSettingTab(new TaskCheckerSettingTab(this.app, this));
+        const settingsTab = new TaskCheckerSettingTab(this.app, this);
+        this.addSettingTab(settingsTab);
+        console.log("Task Checker: Settings tab registered");
 
         // Add a ribbon icon that triggers the task listing when clicked
         this.addRibbonIcon("check-circle", "List files with tasks", () => {
