@@ -1,43 +1,69 @@
-import { Plugin, Notice } from "obsidian";
+import { Plugin, Notice, PluginSettingTab, Setting, App } from "obsidian";
 import * as fs from "fs/promises";
 import * as path from "path";
 
 /**
- * Folders that should be excluded from task scanning.
- * These directories are skipped entirely during recursive traversal.
+ * Plugin settings interface
  */
-const EXCLUDED_FOLDERS = [
-    "G:/Data/Dropbox/ToDo/personal/checklists",
-    "G:/Data/Dropbox/ToDo/personal/tickler",
-    "G:/Data/Dropbox/ToDo/personal/Utility",
-    "G:/Data/Dropbox/ToDo/personal/someday",
-    "G:/Data/Dropbox/ToDo/personal/projects",
-    "G:/Data/Dropbox/ToDo/personal/software",
-    "G:/Data/Dropbox/ToDo/personal/roles",
-    "G:/Data/Dropbox/ToDo/personal/daily"
-];
+interface TaskCheckerSettings {
+    excludedFolders: string[];
+    excludedFiles: string[];
+}
 
 /**
- * Individual files that should be excluded from task scanning.
- * These files are skipped even if they contain task markers.
+ * Default settings values
  */
-const EXCLUDED_FILES = [
-    "G:/Data/Dropbox/ToDo/personal/software/Git/weekly-branch-names.md",
-    "G:/Data/Dropbox/ToDo/personal/CLAUDE.md",
-    "G:/Data/Dropbox/ToDo/personal/software/linux/Not Next Bash Example.md"
-];
+const DEFAULT_SETTINGS: TaskCheckerSettings = {
+    excludedFolders: [
+        "G:/Data/Dropbox/ToDo/personal/checklists",
+        "G:/Data/Dropbox/ToDo/personal/tickler",
+        "G:/Data/Dropbox/ToDo/personal/Utility",
+        "G:/Data/Dropbox/ToDo/personal/someday",
+        "G:/Data/Dropbox/ToDo/personal/projects",
+        "G:/Data/Dropbox/ToDo/personal/software",
+        "G:/Data/Dropbox/ToDo/personal/roles",
+        "G:/Data/Dropbox/ToDo/personal/daily"
+    ],
+    excludedFiles: [
+        "G:/Data/Dropbox/ToDo/personal/software/Git/weekly-branch-names.md",
+        "G:/Data/Dropbox/ToDo/personal/CLAUDE.md",
+        "G:/Data/Dropbox/ToDo/personal/software/linux/Not Next Bash Example.md"
+    ]
+};
 
 /**
  * Obsidian plugin that scans markdown files for incomplete tasks (marked with "- [ ]")
  * and provides commands to list files containing tasks or show a task count.
  */
 export default class MyTaskChecker extends Plugin {
+    settings: TaskCheckerSettings;
+
+    /**
+     * Loads settings from storage or uses defaults.
+     */
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    }
+
+    /**
+     * Saves settings to storage.
+     */
+    async saveSettings() {
+        await this.saveData(this.settings);
+    }
+
     /**
      * Initializes the plugin when Obsidian loads it.
      * Sets up the ribbon icon and command palette commands.
      */
     async onload() {
         console.log("Loading Task Checker plugin");
+
+        // Load settings
+        await this.loadSettings();
+
+        // Add settings tab
+        this.addSettingTab(new TaskCheckerSettingTab(this.app, this));
 
         // Add a ribbon icon that triggers the task listing when clicked
         this.addRibbonIcon("check-circle", "List files with tasks", () => {
@@ -145,7 +171,7 @@ export default class MyTaskChecker extends Plugin {
             const normalizedDir = dirPath.replace(/\\/g, "/");
             
             // Skip this directory and all its contents if it's in the excluded folders list
-            if (EXCLUDED_FOLDERS.some((excluded) => normalizedDir.startsWith(excluded))) {
+            if (this.settings.excludedFolders.some((excluded) => normalizedDir.startsWith(excluded))) {
                 return;
             }
 
@@ -156,7 +182,7 @@ export default class MyTaskChecker extends Plugin {
                 const stat = await fs.lstat(filePath);
 
                 // Skip files that are explicitly excluded
-                if (EXCLUDED_FILES.includes(filePath)) {
+                if (this.settings.excludedFiles.includes(filePath)) {
                     continue;
                 }
 
@@ -176,5 +202,112 @@ export default class MyTaskChecker extends Plugin {
 
         await readDir(dir);
         return filesWithTasks;
+    }
+}
+
+/**
+ * Settings tab for the Task Checker plugin.
+ * Allows users to configure excluded folders and files.
+ */
+class TaskCheckerSettingTab extends PluginSettingTab {
+    plugin: MyTaskChecker;
+
+    constructor(app: App, plugin: MyTaskChecker) {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
+
+    display(): void {
+        const { containerEl } = this;
+
+        containerEl.empty();
+
+        containerEl.createEl("h2", { text: "Task Checker Settings" });
+
+        // Excluded Folders section
+        containerEl.createEl("h3", { text: "Excluded Folders" });
+        containerEl.createEl("p", {
+            text: "Folders that should be excluded from task scanning. These directories are skipped entirely during recursive traversal.",
+            cls: "setting-item-description"
+        });
+
+        const excludedFoldersContainer = containerEl.createDiv("excluded-folders-container");
+        
+        // Display existing excluded folders
+        this.plugin.settings.excludedFolders.forEach((folder, index) => {
+            const folderSetting = new Setting(excludedFoldersContainer)
+                .addText(text => {
+                    text.setValue(folder)
+                        .setPlaceholder("Enter folder path")
+                        .onChange(async (value) => {
+                            this.plugin.settings.excludedFolders[index] = value;
+                            await this.plugin.saveSettings();
+                        });
+                })
+                .addExtraButton(button => {
+                    button.setIcon("trash")
+                        .setTooltip("Remove this folder")
+                        .onClick(async () => {
+                            this.plugin.settings.excludedFolders.splice(index, 1);
+                            await this.plugin.saveSettings();
+                            this.display(); // Refresh the settings tab
+                        });
+                });
+        });
+
+        // Add new folder button
+        new Setting(excludedFoldersContainer)
+            .addButton(button => {
+                button.setButtonText("Add Folder")
+                    .setCta()
+                    .onClick(async () => {
+                        this.plugin.settings.excludedFolders.push("");
+                        await this.plugin.saveSettings();
+                        this.display(); // Refresh the settings tab
+                    });
+            });
+
+        // Excluded Files section
+        containerEl.createEl("h3", { text: "Excluded Files" });
+        containerEl.createEl("p", {
+            text: "Individual files that should be excluded from task scanning. These files are skipped even if they contain task markers.",
+            cls: "setting-item-description"
+        });
+
+        const excludedFilesContainer = containerEl.createDiv("excluded-files-container");
+        
+        // Display existing excluded files
+        this.plugin.settings.excludedFiles.forEach((file, index) => {
+            const fileSetting = new Setting(excludedFilesContainer)
+                .addText(text => {
+                    text.setValue(file)
+                        .setPlaceholder("Enter file path")
+                        .onChange(async (value) => {
+                            this.plugin.settings.excludedFiles[index] = value;
+                            await this.plugin.saveSettings();
+                        });
+                })
+                .addExtraButton(button => {
+                    button.setIcon("trash")
+                        .setTooltip("Remove this file")
+                        .onClick(async () => {
+                            this.plugin.settings.excludedFiles.splice(index, 1);
+                            await this.plugin.saveSettings();
+                            this.display(); // Refresh the settings tab
+                        });
+                });
+        });
+
+        // Add new file button
+        new Setting(excludedFilesContainer)
+            .addButton(button => {
+                button.setButtonText("Add File")
+                    .setCta()
+                    .onClick(async () => {
+                        this.plugin.settings.excludedFiles.push("");
+                        await this.plugin.saveSettings();
+                        this.display(); // Refresh the settings tab
+                    });
+            });
     }
 }
