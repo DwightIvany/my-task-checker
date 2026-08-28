@@ -58,7 +58,8 @@ var MyTaskChecker = class extends import_obsidian.Plugin {
    * Loads settings from storage or uses defaults.
    */
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const loadedData = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData || {});
   }
   /**
    * Saves settings to storage.
@@ -72,8 +73,15 @@ var MyTaskChecker = class extends import_obsidian.Plugin {
    */
   async onload() {
     console.log("Loading Task Checker plugin");
-    await this.loadSettings();
-    this.addSettingTab(new TaskCheckerSettingTab(this.app, this));
+    try {
+      await this.loadSettings();
+    } catch (error) {
+      console.error("Task Checker: Error loading settings, using defaults", error);
+      this.settings = Object.assign({}, DEFAULT_SETTINGS);
+    }
+    const settingsTab = new TaskCheckerSettingTab(this.app, this);
+    this.addSettingTab(settingsTab);
+    console.log("Task Checker: Settings tab registered");
     this.addRibbonIcon("check-circle", "List files with tasks", () => {
       this.listFilesWithTasks();
     });
@@ -194,7 +202,7 @@ var TaskCheckerSettingTab = class extends import_obsidian.PluginSettingTab {
     });
     const excludedFoldersContainer = containerEl.createDiv("excluded-folders-container");
     this.plugin.settings.excludedFolders.forEach((folder, index) => {
-      const folderSetting = new import_obsidian.Setting(excludedFoldersContainer).addText((text) => {
+      const folderSetting = new import_obsidian.Setting(excludedFoldersContainer).setClass("task-checker-entry-setting").addText((text) => {
         text.setValue(folder).setPlaceholder("Enter folder path").onChange(async (value) => {
           this.plugin.settings.excludedFolders[index] = value;
           await this.plugin.saveSettings();
@@ -221,7 +229,7 @@ var TaskCheckerSettingTab = class extends import_obsidian.PluginSettingTab {
     });
     const excludedFilesContainer = containerEl.createDiv("excluded-files-container");
     this.plugin.settings.excludedFiles.forEach((file, index) => {
-      const fileSetting = new import_obsidian.Setting(excludedFilesContainer).addText((text) => {
+      const fileSetting = new import_obsidian.Setting(excludedFilesContainer).setClass("task-checker-entry-setting").addText((text) => {
         text.setValue(file).setPlaceholder("Enter file path").onChange(async (value) => {
           this.plugin.settings.excludedFiles[index] = value;
           await this.plugin.saveSettings();

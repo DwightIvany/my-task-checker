@@ -244,6 +244,7 @@ class TaskCheckerSettingTab extends PluginSettingTab {
         // Display existing excluded folders
         this.plugin.settings.excludedFolders.forEach((folder, index) => {
             const folderSetting = new Setting(excludedFoldersContainer)
+                .setClass("task-checker-entry-setting")
                 .addText(text => {
                     text.setValue(folder)
                         .setPlaceholder("Enter folder path")
@@ -287,6 +288,7 @@ class TaskCheckerSettingTab extends PluginSettingTab {
         // Display existing excluded files
         this.plugin.settings.excludedFiles.forEach((file, index) => {
             const fileSetting = new Setting(excludedFilesContainer)
+                .setClass("task-checker-entry-setting")
                 .addText(text => {
                     text.setValue(file)
                         .setPlaceholder("Enter file path")
