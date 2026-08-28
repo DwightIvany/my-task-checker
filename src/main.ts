@@ -240,10 +240,19 @@ class TaskCheckerSettingTab extends PluginSettingTab {
         });
 
         const excludedFoldersContainer = containerEl.createDiv("excluded-folders-container");
-        
+
+        const moveExcludedFolder = async (fromIndex: number, toIndex: number) => {
+            const folders = [...this.plugin.settings.excludedFolders];
+            if (toIndex < 0 || toIndex >= folders.length) return;
+            [folders[fromIndex], folders[toIndex]] = [folders[toIndex], folders[fromIndex]];
+            this.plugin.settings.excludedFolders = folders;
+            await this.plugin.saveSettings();
+            this.display();
+        };
+
         // Display existing excluded folders
         this.plugin.settings.excludedFolders.forEach((folder, index) => {
-            const folderSetting = new Setting(excludedFoldersContainer)
+            new Setting(excludedFoldersContainer)
                 .setClass("task-checker-entry-setting")
                 .addText(text => {
                     text.setValue(folder)
@@ -254,12 +263,28 @@ class TaskCheckerSettingTab extends PluginSettingTab {
                         });
                 })
                 .addExtraButton(button => {
+                    button.setIcon("arrow-up")
+                        .setTooltip("Move folder up")
+                        .setDisabled(index === 0)
+                        .onClick(async () => {
+                            await moveExcludedFolder(index, index - 1);
+                        });
+                })
+                .addExtraButton(button => {
+                    button.setIcon("arrow-down")
+                        .setTooltip("Move folder down")
+                        .setDisabled(index === this.plugin.settings.excludedFolders.length - 1)
+                        .onClick(async () => {
+                            await moveExcludedFolder(index, index + 1);
+                        });
+                })
+                .addExtraButton(button => {
                     button.setIcon("trash")
                         .setTooltip("Remove this folder")
                         .onClick(async () => {
                             this.plugin.settings.excludedFolders.splice(index, 1);
                             await this.plugin.saveSettings();
-                            this.display(); // Refresh the settings tab
+                            this.display();
                         });
                 });
         });
@@ -272,7 +297,7 @@ class TaskCheckerSettingTab extends PluginSettingTab {
                     .onClick(async () => {
                         this.plugin.settings.excludedFolders.push("");
                         await this.plugin.saveSettings();
-                        this.display(); // Refresh the settings tab
+                        this.display();
                     });
             });
 
@@ -284,10 +309,19 @@ class TaskCheckerSettingTab extends PluginSettingTab {
         });
 
         const excludedFilesContainer = containerEl.createDiv("excluded-files-container");
-        
+
+        const moveExcludedFile = async (fromIndex: number, toIndex: number) => {
+            const files = [...this.plugin.settings.excludedFiles];
+            if (toIndex < 0 || toIndex >= files.length) return;
+            [files[fromIndex], files[toIndex]] = [files[toIndex], files[fromIndex]];
+            this.plugin.settings.excludedFiles = files;
+            await this.plugin.saveSettings();
+            this.display();
+        };
+
         // Display existing excluded files
         this.plugin.settings.excludedFiles.forEach((file, index) => {
-            const fileSetting = new Setting(excludedFilesContainer)
+            new Setting(excludedFilesContainer)
                 .setClass("task-checker-entry-setting")
                 .addText(text => {
                     text.setValue(file)
@@ -298,12 +332,28 @@ class TaskCheckerSettingTab extends PluginSettingTab {
                         });
                 })
                 .addExtraButton(button => {
+                    button.setIcon("arrow-up")
+                        .setTooltip("Move file up")
+                        .setDisabled(index === 0)
+                        .onClick(async () => {
+                            await moveExcludedFile(index, index - 1);
+                        });
+                })
+                .addExtraButton(button => {
+                    button.setIcon("arrow-down")
+                        .setTooltip("Move file down")
+                        .setDisabled(index === this.plugin.settings.excludedFiles.length - 1)
+                        .onClick(async () => {
+                            await moveExcludedFile(index, index + 1);
+                        });
+                })
+                .addExtraButton(button => {
                     button.setIcon("trash")
                         .setTooltip("Remove this file")
                         .onClick(async () => {
                             this.plugin.settings.excludedFiles.splice(index, 1);
                             await this.plugin.saveSettings();
-                            this.display(); // Refresh the settings tab
+                            this.display();
                         });
                 });
         });
@@ -316,7 +366,7 @@ class TaskCheckerSettingTab extends PluginSettingTab {
                     .onClick(async () => {
                         this.plugin.settings.excludedFiles.push("");
                         await this.plugin.saveSettings();
-                        this.display(); // Refresh the settings tab
+                        this.display();
                     });
             });
     }

@@ -1,3 +1,9 @@
+.task-checker-entry-setting {
+	padding-top: 0.25em;
+	padding-bottom: 0.25em;
+	margin-bottom: 0.25em;
+}
+
 .task-checker-entry-setting .setting-item-info {
 	flex: 0 1 auto;
 }
@@ -6,6 +12,7 @@
 	flex: 1 1 auto;
 	justify-content: flex-end;
 	flex-wrap: nowrap;
+	gap: 4px;
 }
 
 .task-checker-entry-setting .setting-item-control input[type="text"] {

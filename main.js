@@ -201,11 +201,27 @@ var TaskCheckerSettingTab = class extends import_obsidian.PluginSettingTab {
       cls: "setting-item-description"
     });
     const excludedFoldersContainer = containerEl.createDiv("excluded-folders-container");
+    const moveExcludedFolder = async (fromIndex, toIndex) => {
+      const folders = [...this.plugin.settings.excludedFolders];
+      if (toIndex < 0 || toIndex >= folders.length) return;
+      [folders[fromIndex], folders[toIndex]] = [folders[toIndex], folders[fromIndex]];
+      this.plugin.settings.excludedFolders = folders;
+      await this.plugin.saveSettings();
+      this.display();
+    };
     this.plugin.settings.excludedFolders.forEach((folder, index) => {
-      const folderSetting = new import_obsidian.Setting(excludedFoldersContainer).setClass("task-checker-entry-setting").addText((text) => {
+      new import_obsidian.Setting(excludedFoldersContainer).setClass("task-checker-entry-setting").addText((text) => {
         text.setValue(folder).setPlaceholder("Enter folder path").onChange(async (value) => {
           this.plugin.settings.excludedFolders[index] = value;
           await this.plugin.saveSettings();
+        });
+      }).addExtraButton((button) => {
+        button.setIcon("arrow-up").setTooltip("Move folder up").setDisabled(index === 0).onClick(async () => {
+          await moveExcludedFolder(index, index - 1);
+        });
+      }).addExtraButton((button) => {
+        button.setIcon("arrow-down").setTooltip("Move folder down").setDisabled(index === this.plugin.settings.excludedFolders.length - 1).onClick(async () => {
+          await moveExcludedFolder(index, index + 1);
         });
       }).addExtraButton((button) => {
         button.setIcon("trash").setTooltip("Remove this folder").onClick(async () => {
@@ -228,11 +244,27 @@ var TaskCheckerSettingTab = class extends import_obsidian.PluginSettingTab {
       cls: "setting-item-description"
     });
     const excludedFilesContainer = containerEl.createDiv("excluded-files-container");
+    const moveExcludedFile = async (fromIndex, toIndex) => {
+      const files = [...this.plugin.settings.excludedFiles];
+      if (toIndex < 0 || toIndex >= files.length) return;
+      [files[fromIndex], files[toIndex]] = [files[toIndex], files[fromIndex]];
+      this.plugin.settings.excludedFiles = files;
+      await this.plugin.saveSettings();
+      this.display();
+    };
     this.plugin.settings.excludedFiles.forEach((file, index) => {
-      const fileSetting = new import_obsidian.Setting(excludedFilesContainer).setClass("task-checker-entry-setting").addText((text) => {
+      new import_obsidian.Setting(excludedFilesContainer).setClass("task-checker-entry-setting").addText((text) => {
         text.setValue(file).setPlaceholder("Enter file path").onChange(async (value) => {
           this.plugin.settings.excludedFiles[index] = value;
           await this.plugin.saveSettings();
+        });
+      }).addExtraButton((button) => {
+        button.setIcon("arrow-up").setTooltip("Move file up").setDisabled(index === 0).onClick(async () => {
+          await moveExcludedFile(index, index - 1);
+        });
+      }).addExtraButton((button) => {
+        button.setIcon("arrow-down").setTooltip("Move file down").setDisabled(index === this.plugin.settings.excludedFiles.length - 1).onClick(async () => {
+          await moveExcludedFile(index, index + 1);
         });
       }).addExtraButton((button) => {
         button.setIcon("trash").setTooltip("Remove this file").onClick(async () => {
