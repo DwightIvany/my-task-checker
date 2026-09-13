@@ -1,6 +1,17 @@
 # Task Checker
 
-An [Obsidian](https://obsidian.md) plugin that scans your vault for notes containing incomplete tasks (`- [ ]`) and writes a dated list of links to a file.
+An [Obsidian](https://obsidian.md) plugin that scans your vault for notes containing incomplete tasks (`- [ ]`) and writes a dated list of links to a file. 
+
+This helps me maintain a system I trust to track action items. I am a fan of David Allen's **Getting Things Done**. He suggested never mixing action items with reference material. Obsidian makes it really easy to confuse those.
+
+Maybe you have Tasks items in a limited set of Files and Folders, and you trust that you will track those nicely. Set up those to be excluded, like Projects and Daily. Then during your reviews (I like weekly review) click the icon for the plugin and see, if there are actions in other places like Reference folders. I then like to move or action those.
+
+## How to Use
+1. Install and Enable the Plugin
+2. Add Exclude entries for the Files and Folders that you like to have Task
+3. Click the Check Box icon in the Sidebar Panel
+Result: it creates a MarkDown file in your vault with other files that have Tasks
+ex. todo-files-2026-09-13 
 
 ## Features
 
