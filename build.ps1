@@ -60,7 +60,6 @@ try {
     New-Item -ItemType Directory -Force -Path $installDir | Out-Null
     Copy-Item -Force $outFile (Join-Path $installDir "main.js")
     Copy-Item -Force (Join-Path $Root "manifest.json") (Join-Path $installDir "manifest.json")
-    Copy-Item -Force (Join-Path $Root "styles.css") (Join-Path $installDir "styles.css")
     Write-Host "Installed -> $installDir"
     Write-Host "Done. Reload Obsidian (toggle Task Checker off/on)."
 }

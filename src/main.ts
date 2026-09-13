@@ -108,14 +108,14 @@ export default class MyTaskChecker extends Plugin {
         this.addSettingTab(new TaskCheckerSettingTab(this.app, this));
 
         this.addRibbonIcon("check-circle", "List files with tasks", () => {
-            void this.listFilesWithTasks();
+            this.run(() => this.listFilesWithTasks(), "Could not write the list of files with tasks.");
         });
 
         this.addCommand({
             id: "list-files-with-tasks",
             name: "List files with tasks",
             callback: () => {
-                void this.listFilesWithTasks();
+                this.run(() => this.listFilesWithTasks(), "Could not write the list of files with tasks.");
             },
         });
 
@@ -123,8 +123,16 @@ export default class MyTaskChecker extends Plugin {
             id: "show-task-count",
             name: "Show task count",
             callback: () => {
-                void this.showTaskCount();
+                this.run(() => this.showTaskCount(), "Could not count files with tasks.");
             },
+        });
+    }
+
+    /** Runs an async command from a void-returning callback, reporting failures. */
+    private run(task: () => Promise<void>, failureMessage: string): void {
+        task().catch((error: unknown) => {
+            console.error(`Task Checker: ${failureMessage}`, error);
+            new Notice(failureMessage);
         });
     }
 
@@ -234,18 +242,18 @@ class TaskCheckerSettingTab extends PluginSettingTab {
                 addItem: {
                     name: "Add folder",
                     action: () => {
-                        void this.addExcludedFolder();
+                        folders.push("");
+                        this.persist(true);
                     },
                 },
-                onReorder: async (oldIndex: number, newIndex: number) => {
+                onReorder: (oldIndex: number, newIndex: number) => {
                     const [moved] = folders.splice(oldIndex, 1);
                     folders.splice(newIndex, 0, moved);
-                    await this.plugin.saveSettings();
+                    this.persist(false);
                 },
-                onDelete: async (idx: number) => {
+                onDelete: (idx: number) => {
                     folders.splice(idx, 1);
-                    await this.plugin.saveSettings();
-                    this.update();
+                    this.persist(true);
                 },
                 items: folders.map((_folder, index) => ({
                     name: "Folder",
@@ -265,18 +273,18 @@ class TaskCheckerSettingTab extends PluginSettingTab {
                 addItem: {
                     name: "Add file",
                     action: () => {
-                        void this.addExcludedFile();
+                        files.push("");
+                        this.persist(true);
                     },
                 },
-                onReorder: async (oldIndex: number, newIndex: number) => {
+                onReorder: (oldIndex: number, newIndex: number) => {
                     const [moved] = files.splice(oldIndex, 1);
                     files.splice(newIndex, 0, moved);
-                    await this.plugin.saveSettings();
+                    this.persist(false);
                 },
-                onDelete: async (idx: number) => {
+                onDelete: (idx: number) => {
                     files.splice(idx, 1);
-                    await this.plugin.saveSettings();
-                    this.update();
+                    this.persist(true);
                 },
                 items: files.map((_file, index) => ({
                     name: "File",
@@ -292,15 +300,21 @@ class TaskCheckerSettingTab extends PluginSettingTab {
         ];
     }
 
-    private async addExcludedFolder() {
-        this.plugin.settings.excludedFolders.push("");
-        await this.plugin.saveSettings();
-        this.update();
-    }
-
-    private async addExcludedFile() {
-        this.plugin.settings.excludedFiles.push("");
-        await this.plugin.saveSettings();
-        this.update();
+    /**
+     * Saves from a void-returning list callback. Obsidian does not await these,
+     * so the rejection has to be handled here.
+     */
+    private persist(rebuild: boolean): void {
+        this.plugin
+            .saveSettings()
+            .then(() => {
+                if (rebuild) {
+                    this.update();
+                }
+            })
+            .catch((error: unknown) => {
+                console.error("Task Checker: Error saving settings", error);
+                new Notice("Could not save settings.");
+            });
     }
 }

@@ -16,7 +16,7 @@ An [Obsidian](https://obsidian.md) plugin that scans your vault for notes contai
 
 ## Installation
 
-Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/DwightIvany/my-task-checker/releases/latest) and copy them into your vault's plugin folder:
+Download `main.js` and `manifest.json` from the [latest release](https://github.com/DwightIvany/my-task-checker/releases/latest) and copy them into your vault's plugin folder:
 
 ```
 <your vault>/.obsidian/plugins/my-task-checker/
@@ -58,13 +58,20 @@ For development with watch mode:
 npm run dev
 ```
 
+Lint and typecheck with the same rules the Obsidian plugin review applies:
+
+```bash
+npm run lint
+npm run typecheck
+```
+
 On Windows without Node/npm, use the standalone build script (downloads `tools/esbuild.exe` on first run):
 
 ```powershell
 .\build.ps1
 ```
 
-The script builds `main.js` in the repo root and copies `main.js`, `manifest.json`, and `styles.css` into `../../../.obsidian/plugins/my-task-checker` (relative to this folder), ready to reload in Obsidian.
+The script builds `main.js` in the repo root and copies `main.js` and `manifest.json` into `../../../.obsidian/plugins/my-task-checker` (relative to this folder), ready to reload in Obsidian.
 
 ## Releasing
 
@@ -72,11 +79,11 @@ The script builds `main.js` in the repo root and copies `main.js`, `manifest.jso
 2. Commit the change, then push an annotated tag that matches that version exactly (no `v` prefix):
 
 ```bash
-git tag -a 1.3.0 -m "1.3.0"
-git push origin 1.3.0
+git tag -a 1.3.1 -m "1.3.1"
+git push origin 1.3.1
 ```
 
-GitHub Actions builds `main.js`, attests `main.js`, `manifest.json`, and `styles.css`, and publishes those files on the GitHub release. Upload the repository `manifest.json` unchanged so it matches the release.
+GitHub Actions builds `main.js`, attests `main.js` and `manifest.json`, and publishes those files on the GitHub release. Upload the repository `manifest.json` unchanged so it matches the release.
 
 ## License
 

@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -44,7 +47,6 @@ jobs:
           subject-path: |
             main.js
             manifest.json
-            styles.css
 
       - name: Create release
         env:
@@ -54,4 +56,4 @@ jobs:
           gh release create "$tag" \
             --title="$tag" \
             --generate-notes \
-            main.js manifest.json styles.css
+            main.js manifest.json
