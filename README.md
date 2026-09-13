@@ -1,16 +1,69 @@
-Periodically (at least weekly), I like to make sure I know where all my do do actions are. If they are in projects and my lastest periodic files, I can trust my system; however, if they are buried in my reference files, then I need to move them. So I wrote this simple Obsidian plugin that displays files with - [ ] actions.
+# Task Checker
 
-To install this plug-in:
-Copy main.js and manifest.json into my-task-checker folder in plugins
-  
-3. Enable a hotkey for task checker
+An [Obsidian](https://obsidian.md) plugin that scans your vault for notes containing incomplete tasks (`- [ ]`) and writes a dated list of links to a file.
 
-When run Onsidian will do 2 things:
-1. Click the check-circle in the ribbon bar
-2. Either review the notification or
-   Open the todo-files-YYYY-MM-DD.md in the root folder of your vault. 
-3. Once done with the list of files, simply delete it.
+## Features
 
-One 2024-11-28 I edited the main.js to have explicit exclude for files and folders. Ideally I would have edited main.ts, and implemented Obsidian UI. But that was taking too much time troubleshooting, so I just hard coded my own solution. Email me, if you need help.
+- **List Files with Tasks** — scans every markdown file in your vault and writes `todo-files-YYYY-MM-DD.md` to the vault root, containing one `[[wikilink]]` per note that has at least one unchecked task
+- **Show Task Count** — displays a notice with the number of notes containing incomplete tasks
+- **Ribbon icon** — the check-circle icon in the ribbon runs the same scan as the command
+- **Exclusions** — configure excluded folders and excluded files in settings; excluded folders are skipped entirely during the scan, excluded files are skipped individually
+- **Settings UI** — add, edit, reorder, and remove exclusion entries
 
-Note to self, if I iterate the UI, I must get main.ts to do the exclusions first.
+## Requirements
+
+- Obsidian 1.4.0 or later (desktop only — the plugin reads your vault through Node's filesystem API, which the mobile app does not support)
+
+## Installation
+
+Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/DwightIvany/my-task-checker/releases/latest) and copy them into your vault's plugin folder:
+
+```
+<your vault>/.obsidian/plugins/my-task-checker/
+```
+
+Create the `my-task-checker` folder if it doesn't exist. Then enable the plugin under **Settings → Community plugins**.
+
+## Usage
+
+1. Click the check-circle ribbon icon, or run the **List Files with Tasks** command
+2. Open the generated `todo-files-YYYY-MM-DD.md` in your vault root — each line links to a note with open tasks
+3. Work through the list; delete the file when you're done
+
+The **Show Task Count** command reports how many notes contain incomplete tasks without writing a file.
+
+## Configuration
+
+Go to **Settings → Task Checker**:
+
+- **Excluded Folders** — absolute paths of folders skipped during the scan (the folder and everything under it)
+- **Excluded Files** — absolute paths of individual files skipped during the scan
+
+Use the arrow buttons to reorder entries and the trash icon to remove them. Entries are stored in the plugin's `data.json`.
+
+## Building from source
+
+With Node.js installed:
+
+```bash
+npm install
+npm run build        # writes main.js to this folder (repo root)
+```
+
+For development with watch mode:
+
+```bash
+npm run dev
+```
+
+On Windows without Node/npm, use the standalone build script (downloads `tools/esbuild.exe` on first run):
+
+```powershell
+.\build.ps1
+```
+
+The script builds `main.js` in the repo root and copies `main.js`, `manifest.json`, and `styles.css` into `../../../.obsidian/plugins/my-task-checker` (relative to this folder), ready to reload in Obsidian.
+
+## License
+
+[Apache License 2.0](LICENSE)

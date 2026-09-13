@@ -14,21 +14,8 @@ interface TaskCheckerSettings {
  * Default settings values
  */
 const DEFAULT_SETTINGS: TaskCheckerSettings = {
-    excludedFolders: [
-        "G:/Data/Dropbox/ToDo/personal/checklists",
-        "G:/Data/Dropbox/ToDo/personal/tickler",
-        "G:/Data/Dropbox/ToDo/personal/Utility",
-        "G:/Data/Dropbox/ToDo/personal/someday",
-        "G:/Data/Dropbox/ToDo/personal/projects",
-        "G:/Data/Dropbox/ToDo/personal/software",
-        "G:/Data/Dropbox/ToDo/personal/roles",
-        "G:/Data/Dropbox/ToDo/personal/daily"
-    ],
-    excludedFiles: [
-        "G:/Data/Dropbox/ToDo/personal/software/Git/weekly-branch-names.md",
-        "G:/Data/Dropbox/ToDo/personal/CLAUDE.md",
-        "G:/Data/Dropbox/ToDo/personal/software/linux/Not Next Bash Example.md"
-    ]
+    excludedFolders: [],
+    excludedFiles: []
 };
 
 /**
@@ -58,8 +45,6 @@ export default class MyTaskChecker extends Plugin {
      * Sets up the ribbon icon and command palette commands.
      */
     async onload() {
-        console.log("Loading Task Checker plugin");
-
         // Load settings
         try {
             await this.loadSettings();
@@ -69,9 +54,7 @@ export default class MyTaskChecker extends Plugin {
         }
 
         // Add settings tab
-        const settingsTab = new TaskCheckerSettingTab(this.app, this);
-        this.addSettingTab(settingsTab);
-        console.log("Task Checker: Settings tab registered");
+        this.addSettingTab(new TaskCheckerSettingTab(this.app, this));
 
         // Add a ribbon icon that triggers the task listing when clicked
         this.addRibbonIcon("check-circle", "List files with tasks", () => {
@@ -91,13 +74,6 @@ export default class MyTaskChecker extends Plugin {
             name: "Show Task Count",
             callback: () => this.showTaskCount(),
         });
-    }
-
-    /**
-     * Cleanup when the plugin is unloaded.
-     */
-    onunload() {
-        console.log("Unloading Task Checker plugin");
     }
 
     /**
@@ -126,7 +102,7 @@ export default class MyTaskChecker extends Plugin {
      * one per line, in the format [[path/to/file]].
      */
     async listFilesWithTasks() {
-        const vaultPath = this.app.vault.adapter.basePath;
+        const vaultPath = (this.app.vault.adapter as any).basePath;
         const filesWithTasks = await this.getFilesWithTasks(vaultPath);
 
         if (filesWithTasks.length === 0) {
@@ -152,7 +128,7 @@ export default class MyTaskChecker extends Plugin {
      * Displays a notification showing the total count of files that contain incomplete tasks.
      */
     async showTaskCount() {
-        const vaultPath = this.app.vault.adapter.basePath;
+        const vaultPath = (this.app.vault.adapter as any).basePath;
         const filesWithTasks = await this.getFilesWithTasks(vaultPath);
         const taskCount = filesWithTasks.length;
         new Notice(`Total number of files with tasks: ${taskCount}`);

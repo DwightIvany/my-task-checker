@@ -1,11 +1,11 @@
 {
     "id": "my-task-checker",
     "name": "Task Checker",
-    "version": "1.2.2",
+    "version": "1.2.3",
     "minAppVersion": "1.4.0",
-    "description": "Lists files that contain the string '- [ ]'.",
+    "description": "Finds notes containing incomplete tasks and writes a dated list of links.",
     "author": "Dwight Ivany",
     "authorUrl": "https://github.com/DwightIvany/my-task-checker",
-    "isDesktopOnly": false
+    "isDesktopOnly": true
   }
   

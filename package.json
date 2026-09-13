@@ -1,18 +1,20 @@
 {
 	"name": "my-task-checker",
-	"version": "1.2.2",
-	"description": "Lists files that contain the string '- [ ]'.",
+	"version": "1.2.3",
+	"description": "Finds notes containing incomplete tasks and writes a dated list of links.",
 	"main": "main.js",
 	"scripts": {
-		"dev": "npx esbuild src/main.ts --bundle --outfile=main.js --platform=node --external:obsidian --allow-overwrite"
+		"dev": "node esbuild.config.mjs",
+		"build": "node esbuild.config.mjs production",
+		"typecheck": "node ./node_modules/typescript/lib/tsc.js -noEmit -skipLibCheck"
 	},
-	"author": "Your Name",
-	"license": "MIT",
-	"dependencies": {
-		"16": "0.0.2",
-		"esbuild": "^0.13.12"
-	},
+	"keywords": [],
+	"author": "Dwight Ivany",
+	"license": "Apache-2.0",
 	"devDependencies": {
+		"@types/node": "^16.11.7",
+		"esbuild": "^0.27.2",
+		"obsidian": "latest",
 		"typescript": "^4.3.5"
 	}
 }

@@ -8,6 +8,9 @@
 # npm
 node_modules
 
+# Standalone esbuild (downloaded by build.ps1)
+tools/
+
 # Don't include the compiled main.js file in the repo.
 # They should be uploaded to GitHub releases instead.
 main.js
@@ -15,8 +18,15 @@ main.js
 # Exclude sourcemaps
 *.map
 
+# TypeScript
+*.tsbuildinfo
+
 # obsidian
 data.json
+
+# Env files
+.env
+.env.*
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
