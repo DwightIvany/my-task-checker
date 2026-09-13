@@ -1,198 +1,186 @@
-import { Plugin, Notice, PluginSettingTab, Setting, App } from "obsidian";
-import * as fs from "fs/promises";
-import * as path from "path";
+import {
+    App,
+    Notice,
+    Plugin,
+    PluginSettingTab,
+    SettingDefinitionItem,
+    TFile,
+    normalizePath,
+} from "obsidian";
 
-/**
- * Plugin settings interface
- */
 interface TaskCheckerSettings {
     excludedFolders: string[];
     excludedFiles: string[];
 }
 
-/**
- * Default settings values
- */
 const DEFAULT_SETTINGS: TaskCheckerSettings = {
     excludedFolders: [],
-    excludedFiles: []
+    excludedFiles: [],
 };
 
-/**
- * Obsidian plugin that scans markdown files for incomplete tasks (marked with "- [ ]")
- * and provides commands to list files containing tasks or show a task count.
- */
-export default class MyTaskChecker extends Plugin {
-    settings: TaskCheckerSettings;
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
-    /**
-     * Loads settings from storage or uses defaults.
-     */
-    async loadSettings() {
-        const loadedData = await this.loadData();
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData || {});
+function isStringArray(value: unknown): value is string[] {
+    return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+/**
+ * Turns a stored exclusion into a vault-relative path.
+ * Older settings used absolute filesystem paths; those are mapped onto
+ * a vault file or folder when a matching suffix exists.
+ */
+function toVaultRelativePath(stored: string, knownPaths: string[]): string {
+    const normalized = normalizePath(stored.replace(/\\/g, "/")).replace(/\/$/, "");
+    if (!normalized) {
+        return "";
+    }
+    if (knownPaths.includes(normalized)) {
+        return normalized;
     }
 
-    /**
-     * Saves settings to storage.
-     */
+    const parts = normalized.split("/").filter((part) => part.length > 0);
+    for (let i = 0; i < parts.length; i++) {
+        const candidate = parts.slice(i).join("/");
+        if (knownPaths.includes(candidate)) {
+            return candidate;
+        }
+    }
+
+    return normalized;
+}
+
+function parseSettings(data: unknown, knownPaths: string[]): TaskCheckerSettings {
+    const record = isRecord(data) ? data : {};
+    const folders = isStringArray(record.excludedFolders) ? record.excludedFolders : [];
+    const files = isStringArray(record.excludedFiles) ? record.excludedFiles : [];
+
+    return {
+        excludedFolders: folders
+            .map((folder) => toVaultRelativePath(folder, knownPaths))
+            .filter((folder) => folder.length > 0),
+        excludedFiles: files
+            .map((file) => toVaultRelativePath(file, knownPaths))
+            .filter((file) => file.length > 0),
+    };
+}
+
+function fileToWikiLink(file: TFile): string {
+    const linkPath = file.path.replace(/\.md$/i, "");
+    return `[[${linkPath}]]`;
+}
+
+function isExcludedFolder(filePath: string, excludedFolders: string[]): boolean {
+    return excludedFolders.some((folder) => {
+        if (!folder) {
+            return false;
+        }
+        return filePath === folder || filePath.startsWith(`${folder}/`);
+    });
+}
+
+/**
+ * Scans the vault for notes with incomplete tasks (`- [ ]`) and can write
+ * a dated list of wikilinks, or report how many such notes exist.
+ */
+export default class MyTaskChecker extends Plugin {
+    settings: TaskCheckerSettings = { ...DEFAULT_SETTINGS };
+
+    async loadSettings() {
+        const knownPaths = this.app.vault.getAllLoadedFiles().map((file) => file.path);
+        const loadedData = await this.loadData() as unknown;
+        this.settings = parseSettings(loadedData, knownPaths);
+    }
+
     async saveSettings() {
         await this.saveData(this.settings);
     }
 
-    /**
-     * Initializes the plugin when Obsidian loads it.
-     * Sets up the ribbon icon and command palette commands.
-     */
     async onload() {
-        // Load settings
         try {
             await this.loadSettings();
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Task Checker: Error loading settings, using defaults", error);
-            this.settings = Object.assign({}, DEFAULT_SETTINGS);
+            this.settings = { ...DEFAULT_SETTINGS };
         }
 
-        // Add settings tab
         this.addSettingTab(new TaskCheckerSettingTab(this.app, this));
 
-        // Add a ribbon icon that triggers the task listing when clicked
         this.addRibbonIcon("check-circle", "List files with tasks", () => {
-            this.listFilesWithTasks();
+            void this.listFilesWithTasks();
         });
 
-        // Register command to list all files containing tasks
         this.addCommand({
             id: "list-files-with-tasks",
-            name: "List Files with Tasks",
-            callback: () => this.listFilesWithTasks(),
+            name: "List files with tasks",
+            callback: () => {
+                void this.listFilesWithTasks();
+            },
         });
 
-        // Register command to display the count of files with tasks
         this.addCommand({
             id: "show-task-count",
-            name: "Show Task Count",
-            callback: () => this.showTaskCount(),
+            name: "Show task count",
+            callback: () => {
+                void this.showTaskCount();
+            },
         });
     }
 
-    /**
-     * Converts a file path to an Obsidian-style link.
-     * 
-     * @param filePath - The absolute file path
-     * @param vaultPath - The vault root path
-     * @returns Obsidian link in the format [[path/to/file]]
-     */
-    private pathToObsidianLink(filePath: string, vaultPath: string): string {
-        // Get relative path from vault root
-        const relativePath = path.relative(vaultPath, filePath);
-        // Normalize path separators to forward slashes
-        const normalizedPath = relativePath.replace(/\\/g, "/");
-        // Remove .md extension if present
-        const linkPath = normalizedPath.replace(/\.md$/i, "");
-        // Return as Obsidian link
-        return `[[${linkPath}]]`;
-    }
-
-    /**
-     * Scans the vault for files containing incomplete tasks and writes the results
-     * to a markdown file in the vault root with today's date.
-     * 
-     * The output file is named "todo-files-YYYY-MM-DD.md" and contains Obsidian-style links,
-     * one per line, in the format [[path/to/file]].
-     */
     async listFilesWithTasks() {
-        const vaultPath = (this.app.vault.adapter as any).basePath;
-        const filesWithTasks = await this.getFilesWithTasks(vaultPath);
+        const filesWithTasks = await this.getFilesWithTasks();
 
         if (filesWithTasks.length === 0) {
             new Notice("No files with tasks found.");
-        } else {
-            // Convert file paths to Obsidian-style links
-            const obsidianLinks = filesWithTasks.map(filePath => 
-                this.pathToObsidianLink(filePath, vaultPath)
-            );
-            // Join links with newlines to create a simple list format
-            const fileList = obsidianLinks.join("\n");
-            // Generate filename with current date in YYYY-MM-DD format
-            const currentDate = new Date();
-            const localDate = currentDate.toLocaleDateString("en-CA");
-            const fileName = `todo-files-${localDate}.md`;
-            // Write the list to a markdown file in the vault root
-            await this.app.vault.adapter.write(fileName, fileList);
-            new Notice(`Files with tasks have been written to ${fileName}`);
+            return;
         }
+
+        const fileList = filesWithTasks.map(fileToWikiLink).join("\n");
+        const localDate = new Date().toLocaleDateString("en-CA");
+        const fileName = `todo-files-${localDate}.md`;
+        const existing = this.app.vault.getAbstractFileByPath(fileName);
+
+        if (existing instanceof TFile) {
+            await this.app.vault.modify(existing, fileList);
+        } else {
+            await this.app.vault.create(fileName, fileList);
+        }
+
+        new Notice(`Files with tasks have been written to ${fileName}`);
     }
 
-    /**
-     * Displays a notification showing the total count of files that contain incomplete tasks.
-     */
     async showTaskCount() {
-        const vaultPath = (this.app.vault.adapter as any).basePath;
-        const filesWithTasks = await this.getFilesWithTasks(vaultPath);
-        const taskCount = filesWithTasks.length;
-        new Notice(`Total number of files with tasks: ${taskCount}`);
+        const filesWithTasks = await this.getFilesWithTasks();
+        new Notice(`Total number of files with tasks: ${filesWithTasks.length}`);
     }
 
-    /**
-     * Recursively scans a directory tree for markdown files containing incomplete tasks.
-     * 
-     * A task is considered incomplete if it contains the pattern "- [ ]" (unchecked checkbox).
-     * Files in excluded folders and specific excluded files are skipped.
-     * 
-     * @param dir - The root directory path to start scanning from
-     * @returns Promise resolving to an array of file paths that contain incomplete tasks
-     */
-    async getFilesWithTasks(dir: string): Promise<string[]> {
-        let filesWithTasks: string[] = [];
+    async getFilesWithTasks(): Promise<TFile[]> {
+        const filesWithTasks: TFile[] = [];
+        const markdownFiles = this.app.vault.getMarkdownFiles();
 
-        /**
-         * Recursively reads a directory and checks markdown files for incomplete tasks.
-         * @param dirPath - The directory path to scan
-         */
-        const readDir = async (dirPath: string) => {
-            // Normalize Windows backslashes to forward slashes for consistent path comparison
-            const normalizedDir = dirPath.replace(/\\/g, "/");
-            
-            // Skip this directory and all its contents if it's in the excluded folders list
-            if (this.settings.excludedFolders.some((excluded) => normalizedDir.startsWith(excluded))) {
-                return;
+        for (const file of markdownFiles) {
+            if (isExcludedFolder(file.path, this.settings.excludedFolders)) {
+                continue;
+            }
+            if (this.settings.excludedFiles.includes(file.path)) {
+                continue;
             }
 
-            const files = await fs.readdir(dirPath);
-            for (const file of files) {
-                // Normalize path separators for consistent comparison with excluded files
-                const filePath = path.join(dirPath, file).replace(/\\/g, "/");
-                const stat = await fs.lstat(filePath);
-
-                // Skip files that are explicitly excluded
-                if (this.settings.excludedFiles.includes(filePath)) {
-                    continue;
+            try {
+                const content = await this.app.vault.cachedRead(file);
+                if (content.includes("- [ ]")) {
+                    filesWithTasks.push(file);
                 }
-
-                if (stat.isDirectory()) {
-                    // Recursively scan subdirectories
-                    await readDir(filePath);
-                } else if (file.endsWith(".md")) {
-                    // Only process markdown files
-                    const content = await fs.readFile(filePath, "utf8");
-                    // Check if file contains at least one incomplete task (unchecked checkbox)
-                    if (content.includes("- [ ]")) {
-                        filesWithTasks.push(filePath);
-                    }
-                }
+            } catch (error: unknown) {
+                console.error(`Task Checker: Unable to read ${file.path}`, error);
             }
-        };
+        }
 
-        await readDir(dir);
         return filesWithTasks;
     }
 }
 
-/**
- * Settings tab for the Task Checker plugin.
- * Allows users to configure excluded folders and files.
- */
 class TaskCheckerSettingTab extends PluginSettingTab {
     plugin: MyTaskChecker;
 
@@ -201,149 +189,118 @@ class TaskCheckerSettingTab extends PluginSettingTab {
         this.plugin = plugin;
     }
 
-    display(): void {
-        const { containerEl } = this;
+    getControlValue(key: string): unknown {
+        const folderMatch = /^excludedFolders\.(\d+)$/.exec(key);
+        if (folderMatch) {
+            return this.plugin.settings.excludedFolders[Number(folderMatch[1])] ?? "";
+        }
 
-        containerEl.empty();
+        const fileMatch = /^excludedFiles\.(\d+)$/.exec(key);
+        if (fileMatch) {
+            return this.plugin.settings.excludedFiles[Number(fileMatch[1])] ?? "";
+        }
 
-        containerEl.createEl("h2", { text: "Task Checker Settings" });
+        return super.getControlValue(key);
+    }
 
-        // Excluded Folders section
-        containerEl.createEl("h3", { text: "Excluded Folders" });
-        containerEl.createEl("p", {
-            text: "Folders that should be excluded from task scanning. These directories are skipped entirely during recursive traversal.",
-            cls: "setting-item-description"
-        });
+    async setControlValue(key: string, value: unknown): Promise<void> {
+        if (typeof value !== "string") {
+            return;
+        }
 
-        const excludedFoldersContainer = containerEl.createDiv("excluded-folders-container");
-
-        const moveExcludedFolder = async (fromIndex: number, toIndex: number) => {
-            const folders = [...this.plugin.settings.excludedFolders];
-            if (toIndex < 0 || toIndex >= folders.length) return;
-            [folders[fromIndex], folders[toIndex]] = [folders[toIndex], folders[fromIndex]];
-            this.plugin.settings.excludedFolders = folders;
+        const folderMatch = /^excludedFolders\.(\d+)$/.exec(key);
+        if (folderMatch) {
+            this.plugin.settings.excludedFolders[Number(folderMatch[1])] = value;
             await this.plugin.saveSettings();
-            this.display();
-        };
+            return;
+        }
 
-        // Display existing excluded folders
-        this.plugin.settings.excludedFolders.forEach((folder, index) => {
-            new Setting(excludedFoldersContainer)
-                .setClass("task-checker-entry-setting")
-                .addText(text => {
-                    text.setValue(folder)
-                        .setPlaceholder("Enter folder path")
-                        .onChange(async (value) => {
-                            this.plugin.settings.excludedFolders[index] = value;
-                            await this.plugin.saveSettings();
-                        });
-                })
-                .addExtraButton(button => {
-                    button.setIcon("arrow-up")
-                        .setTooltip("Move folder up")
-                        .setDisabled(index === 0)
-                        .onClick(async () => {
-                            await moveExcludedFolder(index, index - 1);
-                        });
-                })
-                .addExtraButton(button => {
-                    button.setIcon("arrow-down")
-                        .setTooltip("Move folder down")
-                        .setDisabled(index === this.plugin.settings.excludedFolders.length - 1)
-                        .onClick(async () => {
-                            await moveExcludedFolder(index, index + 1);
-                        });
-                })
-                .addExtraButton(button => {
-                    button.setIcon("trash")
-                        .setTooltip("Remove this folder")
-                        .onClick(async () => {
-                            this.plugin.settings.excludedFolders.splice(index, 1);
-                            await this.plugin.saveSettings();
-                            this.display();
-                        });
-                });
-        });
-
-        // Add new folder button
-        new Setting(excludedFoldersContainer)
-            .addButton(button => {
-                button.setButtonText("Add Folder")
-                    .setCta()
-                    .onClick(async () => {
-                        this.plugin.settings.excludedFolders.push("");
-                        await this.plugin.saveSettings();
-                        this.display();
-                    });
-            });
-
-        // Excluded Files section
-        containerEl.createEl("h3", { text: "Excluded Files" });
-        containerEl.createEl("p", {
-            text: "Individual files that should be excluded from task scanning. These files are skipped even if they contain task markers.",
-            cls: "setting-item-description"
-        });
-
-        const excludedFilesContainer = containerEl.createDiv("excluded-files-container");
-
-        const moveExcludedFile = async (fromIndex: number, toIndex: number) => {
-            const files = [...this.plugin.settings.excludedFiles];
-            if (toIndex < 0 || toIndex >= files.length) return;
-            [files[fromIndex], files[toIndex]] = [files[toIndex], files[fromIndex]];
-            this.plugin.settings.excludedFiles = files;
+        const fileMatch = /^excludedFiles\.(\d+)$/.exec(key);
+        if (fileMatch) {
+            this.plugin.settings.excludedFiles[Number(fileMatch[1])] = value;
             await this.plugin.saveSettings();
-            this.display();
-        };
+        }
+    }
 
-        // Display existing excluded files
-        this.plugin.settings.excludedFiles.forEach((file, index) => {
-            new Setting(excludedFilesContainer)
-                .setClass("task-checker-entry-setting")
-                .addText(text => {
-                    text.setValue(file)
-                        .setPlaceholder("Enter file path")
-                        .onChange(async (value) => {
-                            this.plugin.settings.excludedFiles[index] = value;
-                            await this.plugin.saveSettings();
-                        });
-                })
-                .addExtraButton(button => {
-                    button.setIcon("arrow-up")
-                        .setTooltip("Move file up")
-                        .setDisabled(index === 0)
-                        .onClick(async () => {
-                            await moveExcludedFile(index, index - 1);
-                        });
-                })
-                .addExtraButton(button => {
-                    button.setIcon("arrow-down")
-                        .setTooltip("Move file down")
-                        .setDisabled(index === this.plugin.settings.excludedFiles.length - 1)
-                        .onClick(async () => {
-                            await moveExcludedFile(index, index + 1);
-                        });
-                })
-                .addExtraButton(button => {
-                    button.setIcon("trash")
-                        .setTooltip("Remove this file")
-                        .onClick(async () => {
-                            this.plugin.settings.excludedFiles.splice(index, 1);
-                            await this.plugin.saveSettings();
-                            this.display();
-                        });
-                });
-        });
+    getSettingDefinitions(): SettingDefinitionItem[] {
+        const folders = this.plugin.settings.excludedFolders;
+        const files = this.plugin.settings.excludedFiles;
 
-        // Add new file button
-        new Setting(excludedFilesContainer)
-            .addButton(button => {
-                button.setButtonText("Add File")
-                    .setCta()
-                    .onClick(async () => {
-                        this.plugin.settings.excludedFiles.push("");
-                        await this.plugin.saveSettings();
-                        this.display();
-                    });
-            });
+        return [
+            {
+                type: "list" as const,
+                heading: "Excluded folders",
+                emptyState: "No folders excluded.",
+                addItem: {
+                    name: "Add folder",
+                    action: () => {
+                        void this.addExcludedFolder();
+                    },
+                },
+                onReorder: async (oldIndex: number, newIndex: number) => {
+                    const [moved] = folders.splice(oldIndex, 1);
+                    folders.splice(newIndex, 0, moved);
+                    await this.plugin.saveSettings();
+                },
+                onDelete: async (idx: number) => {
+                    folders.splice(idx, 1);
+                    await this.plugin.saveSettings();
+                    this.update();
+                },
+                items: folders.map((_folder, index) => ({
+                    name: "Folder",
+                    searchable: false,
+                    control: {
+                        type: "folder" as const,
+                        key: `excludedFolders.${index}`,
+                        includeRoot: false,
+                        placeholder: "Select a folder",
+                    },
+                })),
+            },
+            {
+                type: "list" as const,
+                heading: "Excluded files",
+                emptyState: "No files excluded.",
+                addItem: {
+                    name: "Add file",
+                    action: () => {
+                        void this.addExcludedFile();
+                    },
+                },
+                onReorder: async (oldIndex: number, newIndex: number) => {
+                    const [moved] = files.splice(oldIndex, 1);
+                    files.splice(newIndex, 0, moved);
+                    await this.plugin.saveSettings();
+                },
+                onDelete: async (idx: number) => {
+                    files.splice(idx, 1);
+                    await this.plugin.saveSettings();
+                    this.update();
+                },
+                items: files.map((_file, index) => ({
+                    name: "File",
+                    searchable: false,
+                    control: {
+                        type: "file" as const,
+                        key: `excludedFiles.${index}`,
+                        placeholder: "Select a file",
+                        filter: (file: TFile) => file.extension === "md",
+                    },
+                })),
+            },
+        ];
+    }
+
+    private async addExcludedFolder() {
+        this.plugin.settings.excludedFolders.push("");
+        await this.plugin.saveSettings();
+        this.update();
+    }
+
+    private async addExcludedFile() {
+        this.plugin.settings.excludedFiles.push("");
+        await this.plugin.saveSettings();
+        this.update();
     }
 }

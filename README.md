@@ -4,15 +4,15 @@ An [Obsidian](https://obsidian.md) plugin that scans your vault for notes contai
 
 ## Features
 
-- **List Files with Tasks** — scans every markdown file in your vault and writes `todo-files-YYYY-MM-DD.md` to the vault root, containing one `[[wikilink]]` per note that has at least one unchecked task
-- **Show Task Count** — displays a notice with the number of notes containing incomplete tasks
+- **List files with tasks** — scans markdown notes in your vault and writes `todo-files-YYYY-MM-DD.md` to the vault root, containing one `[[wikilink]]` per note that has at least one unchecked task
+- **Show task count** — displays a notice with the number of notes containing incomplete tasks
 - **Ribbon icon** — the check-circle icon in the ribbon runs the same scan as the command
-- **Exclusions** — configure excluded folders and excluded files in settings; excluded folders are skipped entirely during the scan, excluded files are skipped individually
-- **Settings UI** — add, edit, reorder, and remove exclusion entries
+- **Exclusions** — configure excluded folders and excluded files in settings
+- **Settings search** — exclusions use Obsidian's declarative settings API so they appear in settings search on Obsidian 1.13.0 or later
 
 ## Requirements
 
-- Obsidian 1.4.0 or later (desktop only — the plugin reads your vault through Node's filesystem API, which the mobile app does not support)
+- Obsidian 1.13.0 or later
 
 ## Installation
 
@@ -26,20 +26,22 @@ Create the `my-task-checker` folder if it doesn't exist. Then enable the plugin 
 
 ## Usage
 
-1. Click the check-circle ribbon icon, or run the **List Files with Tasks** command
-2. Open the generated `todo-files-YYYY-MM-DD.md` in your vault root — each line links to a note with open tasks
+1. Click the check-circle ribbon icon, or run the **List files with tasks** command
+2. Open the generated `todo-files-YYYY-MM-DD.md` in the vault root — each line links to a note with open tasks
 3. Work through the list; delete the file when you're done
 
-The **Show Task Count** command reports how many notes contain incomplete tasks without writing a file.
+The **Show task count** command reports how many notes contain incomplete tasks without writing a file.
 
 ## Configuration
 
 Go to **Settings → Task Checker**:
 
-- **Excluded Folders** — absolute paths of folders skipped during the scan (the folder and everything under it)
-- **Excluded Files** — absolute paths of individual files skipped during the scan
+- **Excluded folders** — vault folders skipped during the scan (the folder and everything under it)
+- **Excluded files** — individual notes skipped during the scan
 
-Use the arrow buttons to reorder entries and the trash icon to remove them. Entries are stored in the plugin's `data.json`.
+Use the list controls to add, reorder, and remove entries. Paths are stored relative to the vault. If you previously saved absolute filesystem paths, they are converted to vault-relative paths when settings load.
+
+Entries are stored in the plugin's `data.json`.
 
 ## Building from source
 
@@ -63,6 +65,18 @@ On Windows without Node/npm, use the standalone build script (downloads `tools/e
 ```
 
 The script builds `main.js` in the repo root and copies `main.js`, `manifest.json`, and `styles.css` into `../../../.obsidian/plugins/my-task-checker` (relative to this folder), ready to reload in Obsidian.
+
+## Releasing
+
+1. Set the same version in `package.json` and `manifest.json`, and add it to `versions.json`.
+2. Commit the change, then push an annotated tag that matches that version exactly (no `v` prefix):
+
+```bash
+git tag -a 1.3.0 -m "1.3.0"
+git push origin 1.3.0
+```
+
+GitHub Actions builds `main.js`, attests `main.js`, `manifest.json`, and `styles.css`, and publishes those files on the GitHub release. Upload the repository `manifest.json` unchanged so it matches the release.
 
 ## License
 

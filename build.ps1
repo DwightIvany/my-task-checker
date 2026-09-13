@@ -49,7 +49,7 @@ $externals = @(
 Write-Host "Building -> $outFile"
 Push-Location $Root
 try {
-    & $Esbuild "src/main.ts" --bundle --format=cjs --platform=node --target=es2018 `
+    & $Esbuild "src/main.ts" --bundle --format=cjs --platform=browser --target=es2018 `
         --tree-shaking=true `
         --banner:js="$banner" `
         --outfile="$outFile" `
